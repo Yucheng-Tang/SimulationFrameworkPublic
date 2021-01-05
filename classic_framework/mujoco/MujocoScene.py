@@ -22,7 +22,7 @@ class MujocoScene(Scene):
                  panda_xml_path=None,
                  control: mj_ctrl.MujocoController = None,
                  gripper_control=None,
-                 dt=0.001,
+                 dt=0.001, # was 0.001
                  n_substeps=1,
                  kp=None,
                  kp_scale=1,
