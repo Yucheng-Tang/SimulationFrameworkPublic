@@ -84,7 +84,7 @@ if __name__ == '__main__':
 
             # Generate nonlinear trajectory, we use cosine function here
             random_index = box_index*len(collision_height)+ collision_index
-            max_amplitude = (collision_height[collision_index]+box_height[box_index])*2 + random_list[random_index]
+            max_amplitude = (collision_height[collision_index]*2 + random_list[random_index])*1.3
             cos_traj = generate_cos_func(max=max_amplitude, num_pt=10)
 
             # Define a pick height according to the box height
@@ -110,7 +110,10 @@ if __name__ == '__main__':
 
             # timeStamp for csv file
             step = int(4000/num_points)
-            df = pd.DataFrame({'time': np.array(mj_Robot.logger.time_stamp_list[::step])})
+            time_stamp = mj_Robot.logger.time_stamp_list[::step]
+            # start_time = time_stamp[0]
+            # time_stamp[:] = [x - start_time for x in time_stamp]
+            df = pd.DataFrame({'time': np.array(time_stamp)-time_stamp[0]})
 
             # save pos information for trajectory follow function in joint space
             # run Demo_Follow_Trajectory_test.py to reproduce the trajectory (with oscillation)
@@ -170,13 +173,15 @@ if __name__ == '__main__':
                 vel_res.clear()
 
             if save_path is not None:
-                df.to_csv(path_or_buf=save_path + "/" + str(i) + ".csv",
+                # save as *.csv file
+                df.to_csv(path_or_buf=save_path + "/" + str(random_index) + ".csv",
                                 index=False)
+
+                # save as *.npy file
                 dict = {'time': np.array(mj_Robot.logger.time_stamp_list[::60]),
                         'joint_pos': np.array(mj_Robot.logger.joint_pos_list[::60]),
                         'joint_vel': np.array(mj_Robot.logger.joint_pos_list[::60])}
-                # print(dict)
-                np.save("%s/%d" % (save_path, i), dict)
+                np.save("%s/%d" % (save_path, random_index), dict)
 
             # Execute place movement
             mj_Robot.set_gripper_width = 0.04
