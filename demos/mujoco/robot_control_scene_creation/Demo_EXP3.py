@@ -1,10 +1,25 @@
+"""
+Demonstration for EXP3 Robot Pick and Place Task II
+
+Robot places the object according to the shape and weight of the object. Since the limitation of existed controller,
+the trajectory generated is discrete, proof-of-concept online trajectory adaptation according to sensor data is completed.
+
+Conda environment is a combination of SimulationFramework and NMP.
+
+Author: Yucheng Tang
+Email:tyc1333@gmail.com
+Data:26.04.2021
+"""
+
 import sys
 sys.path.append("/home/yucheng/alr_ws/ACNMP/NMP")
 # Import Python libs
 import torch
 from torch.distributions import MultivariateNormal
 import matplotlib.pyplot as plt
+from matplotlib import transforms
 import matplotlib.patches as patches
+from matplotlib.animation import FuncAnimation
 import numpy as np
 
 from nmp.net import MPNet
@@ -117,6 +132,7 @@ if __name__ == '__main__':
     object_type_arr = np.ones(10)
     weight_arr =np.array([1, 1, 1, 1, 1, 8, 8, 8, 8, 8])
 
+    # configure the scene for EXP3
     box1 = MujocoPrimitiveObject(obj_pos=[.5, 0, 0.35], obj_name="box1", geom_rgba=[0.1, 0.25, 0.3, 1],
                                  geom_size=[0.03, 0.03, 0.04],
                                  mass=0.1)
@@ -129,8 +145,8 @@ if __name__ == '__main__':
     # object_list = [box1, box2]
     object_list = [box1, table]
 
-    scene = Scene(object_list=object_list, render=False)
-    # , render=False)  # if we want to do mocap control
+    scene = Scene(object_list=object_list, render=False) # render=False turn off rendering
+    # if we want to do mocap control
     # scene = Scene(object_list=object_list)                        # ik control is default
 
     mj_Robot = MujocoRobot(scene, gravity_comp=True, num_DoF=7)
@@ -153,32 +169,76 @@ if __name__ == '__main__':
     previous_trajectory = cnmp_experiment(object_type_arr[0],weight_arr[0])
     changed_trajectory = cnmp_experiment(object_type_arr[9],weight_arr[9])
 
+    # discrete online trajectory generation, need a new controller for continuous trajectory
     for i in range(10):
         current_trajectory = cnmp_experiment(object_type_arr[i],weight_arr[i])
         mj_Robot.gotoCartPositionAndQuat(current_trajectory[i], [0, 1, 0, 0], duration=duration)
 
     mj_Robot.stopLogging()
-    print(mj_Robot.logger.cart_pos)
+    # plot the result
     x_pos = mj_Robot.logger.cart_pos.T[0]
     y_pos = mj_Robot.logger.cart_pos.T[1]
+    x_pos_tran = y_pos[::10]
+    y_pos_tran = -x_pos[::10]
     fig, (ax1, ax2) = plt.subplots(1,2)
-    ax1.plot(x_pos, y_pos, linewidth=4)
-    ax1.plot(previous_trajectory.T[0], previous_trajectory.T[1],'r-')
-    ax1.plot(changed_trajectory.T[0], changed_trajectory.T[1], 'g-')
-    circle1 = plt.Circle((0.36, 0.2), 0.02, color='r')
-    circle2 = plt.Circle((0.36, -0.2), 0.02, color='b')
-    square1 = patches.Rectangle((0.64, 0.18), 0.04, 0.04, color='r')
-    square2 = patches.Rectangle((0.64, -0.22), 0.04, 0.04, color='b')
+    # fig, ax1 = plt.subplots()
+    rot = transforms.Affine2D().rotate_deg(-90)
+    base = ax1.transData
+
+    # ax1.plot(x_pos, y_pos, linewidth=4, transform= rot + base)
+    # ax1.plot(previous_trajectory.T[0], previous_trajectory.T[1],'r-', transform= rot + base)
+    # ax1.plot(changed_trajectory.T[0], changed_trajectory.T[1], 'g-', transform= rot + base)
+    circle1 = plt.Circle((0.36, 0.2), 0.02, color='r',transform= rot + base)
+    circle2 = plt.Circle((0.36, -0.2), 0.02, color='b',transform= rot + base)
+    square1 = patches.Rectangle((0.64, 0.18), 0.04, 0.04, color='r',transform= rot + base)
+    square2 = patches.Rectangle((0.64, -0.22), 0.04, 0.04, color='b',transform= rot + base)
     ax1.add_patch(circle1)
     ax1.add_patch(circle2)
     ax1.add_patch(square2)
     ax1.add_patch(square1)
-    ax1.set_xlim(0.2, 0.8)
-    ax1.set_ylim(-0.3, 0.3)
-    #ax1.set_title("CNMP prediction and executed trajectory")
+    # # ax1.set_xlim(0.2, 0.8)
+    # # ax1.set_ylim(-0.3, 0.3)
+    # # rot = transforms.Affine2D().rotate_deg(90)
+    graph, = ax1.plot([], [], 'o')
+
+    # x = np.arange(10)
+    # y = np.random.random(10)
+    #
+    # fig = plt.figure()
+    # plt.xlim(0, 10)
+    # plt.ylim(0, 1)
+    # graph, = plt.plot([], [], 'o')
+    line, = ax1.plot([], [], "r-")
+
+    weight, = ax2.plot([], [], "b-")
+    ax2.set_xlim(0, 10)
+    ax2.set_ylim(0, 1)
+    x_axis = np.linspace(0, 9, num=1000)
+    weight_arr_plot = []
+    for i in range(len(weight_arr)):
+        weight_arr_plot += 100*[weight_arr[i]/10]
+    print(len(x_axis), len(weight_arr_plot))
+    # ax2.plot(weight_arr / 10)
+
+    def animate(i):
+        print(i)
+        graph.set_data(x_pos_tran[:i + 1], y_pos_tran[:i + 1])
+        if i < 500:
+            line.set_color("b")
+            line.set_data(previous_trajectory.T[1], -previous_trajectory.T[0]) # , transform=rot + base)
+        elif i > 500:
+            line.set_color("r")
+            line.set_data(changed_trajectory.T[1], -changed_trajectory.T[0]) #, 'g-', transform=rot + base)
+        weight.set_data(x_axis[:i+1], weight_arr_plot[:i+1])
+        return graph
+
+
+    ani = FuncAnimation(fig, animate, frames=1000, interval=20)
+    ax1.set_title("CNMP prediction and executed trajectory",fontsize=30)
     # fig, axs = plt.subplots(2)
-    x_axis = np.linspace(0,9,10)
-    ax2.plot(weight_arr/10)
-    #set_title("normalized weight")
+
+    ax2.set_title("Normalized weight",fontsize=30)
     plt.show()
+
+    # plt.show()
     # mj_Robot.logger.plot(RobotPlotFlags.CART_POS)# | RobotPlotFlags.END_EFFECTOR)
