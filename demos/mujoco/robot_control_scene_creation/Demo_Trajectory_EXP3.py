@@ -1,3 +1,14 @@
+"""
+Dataset generation for EXP3 Robot Pick and Place Task II
+
+Robot places the object according to the shape and weight of the object.
+Data form: time, cart_pos_0, cart_pos_1, cart_pos_2, object_ctx, weight_ctx
+
+Author: Yucheng Tang
+Email:tyc1333@gmail.com
+Data:06.04.2021
+"""
+
 import classic_framework.mujoco.mujoco_utils.mujoco_controllers as mj_ctrl
 from classic_framework.interface.Logger import RobotPlotFlags
 from classic_framework.mujoco.MujocoRobot import MujocoRobot
@@ -95,7 +106,7 @@ if __name__ == '__main__':
             # object_list = [box1, box2]
             object_list = [box1, table]
 
-            scene = Scene(object_list=object_list,render=False)
+            scene = Scene(object_list=object_list,render=True)
                           # , render=False)  # if we want to do mocap control
             # scene = Scene(object_list=object_list)                        # ik control is default
 
